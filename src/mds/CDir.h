@@ -505,6 +505,14 @@ public:
   void commit_to(version_t want);
   void commit(version_t want, MDSInternalContextBase *c,
 	      bool ignore_authpinnability=false, int op_prio=-1);
+  /**
+   * Flushes the given directory, and its parent inode, out to disk.
+   * @pre is_auth() on both the directory and its inode
+   * @pre can_auth_pin()
+   * @pre !is_dirty_rstat()
+   * @param fin The Context to call when the flush is committed
+   */
+  void flush(MDSInternalContextBase *fin);
 
   // -- dirtyness --
   version_t get_committing_version() { return committing_version; }

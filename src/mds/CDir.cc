@@ -2069,7 +2069,18 @@ void CDir::_committed(version_t v)
     auth_unpin(this);
 }
 
+void CDir::flush(MDSInternalContextBase *fin)
+{
+  dout(10) << "flush " << *this << dendl;
+  assert(is_auth() && can_auth_pin());
 
+  MDSGatherBuilder gather(g_ceph_context, fin);
+  if (is_dirty()) {
+    commit(0, gather.new_sub());
+    inode->flush(gather.new_sub());
+  }
+  gather.activate();
+}
 
 
 
