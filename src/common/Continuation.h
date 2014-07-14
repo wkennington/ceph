@@ -13,9 +13,12 @@
  */
 
 #include "include/Context.h"
-#include <map>
+#include <set>
 
 class Continuation {
+  bool parallel_mode;
+  bool parallel_failed;
+  std::set<int> parallel_stages_in_flight;
   int serial_stage;
   int rval;
   Context *on_finish;
@@ -35,20 +38,34 @@ class Continuation {
   private:
   void continue_function(int r, int stage) {
     bool done = _continue_function(r, stage);
+    if (parallel_mode) {
+      assert (!done);
+      int deleted = parallel_stages_in_flight.erase(stage);
+      assert(deleted);
+      if (parallel_stages_in_flight.empty()) {
+        r = 0;
+        parallel_mode = false;
+        done = _continue_function(r, serial_stage);
+      }
+    }
     if (done) {
       on_finish->complete(rval);
       on_finish = NULL;
       delete this;
+      return;
     }
   }
 
 public:
-  Continuation(Context *c) : serial_stage(0), rval(0), on_finish(c) {}
+  Continuation(Context *c) :
+    parallel_mode(false), parallel_failed(false),
+    serial_stage(0), rval(0), on_finish(c) {}
   virtual ~Continuation() { assert(on_finish == NULL); }
 
   void begin() { continue_function(0, 0); }
 
   Context *get_serial_callback() {
+    assert(!parallel_mode);
     ++serial_stage;
     return new Callback(this, serial_stage);
   }
@@ -57,4 +74,19 @@ public:
     assert(skip_stage == ++serial_stage);
   }
   void set_rval(int new_rval) { rval = new_rval; }
+
+  void go_parallel_until(int cleanup_stage) {
+    parallel_mode = true;
+    serial_stage = cleanup_stage;
+  }
+
+  Context *get_parallel_callback(int stage) {
+    pair<std::set<int>::iterator,bool> retval =
+        parallel_stages_in_flight.insert(stage);
+    assert(!retval.second); // we'd better not have run it twice!
+    return new Callback(this, stage);
+  }
+
+  void set_parallel_failed() { parallel_failed = true; }
+  bool is_failed() { return parallel_failed; }
 };
