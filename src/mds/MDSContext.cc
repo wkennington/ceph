@@ -35,6 +35,18 @@ MDS *MDSInternalContext::get_mds() {
   return mds;
 }
 
+MDS *MDSInternalContextWrapper::get_mds()
+{
+  derr << "Forbidden call to MDSInternalContextGather::get_mds by " << typeid(*this).name() << dendl;
+  assert(0);
+  return NULL;
+}
+
+void MDSInternalContextWrapper::finish(int r)
+{
+  fin->complete(r);
+}
+
 
 void MDSIOContextBase::complete(int r) {
   MDS *mds = get_mds();
