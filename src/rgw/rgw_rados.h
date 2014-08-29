@@ -777,7 +777,7 @@ struct RGWRadosCtx {
 
 struct RGWPoolIterCtx {
   librados::IoCtx io_ctx;
-  librados::ObjectIterator iter;
+  librados::NObjectIterator iter;
 };
 
 struct RGWListRawObjsCtx {
