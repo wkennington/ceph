@@ -32,6 +32,8 @@ class RGWGC;
 
 #define RGW_BUCKET_INSTANCE_MD_PREFIX ".bucket.meta."
 
+#define BUCKET_INDEX_SHARD_FORMAT "%s#%lu"
+
 static inline void prepend_bucket_marker(rgw_bucket& bucket, const string& orig_oid, string& oid)
 {
   if (bucket.marker.empty() || orig_oid.empty()) {
@@ -1166,21 +1168,13 @@ public:
 class RGWGetBucketStats_CB : public RefCountedObject {
 protected:
   rgw_bucket bucket;
-  uint64_t bucket_ver;
-  uint64_t master_ver;
   map<RGWObjCategory, RGWStorageStats> *stats;
-  string max_marker;
 public:
   RGWGetBucketStats_CB(rgw_bucket& _bucket) : bucket(_bucket), stats(NULL) {}
   virtual ~RGWGetBucketStats_CB() {}
   virtual void handle_response(int r) = 0;
-  virtual void set_response(uint64_t _bucket_ver, uint64_t _master_ver,
-                            map<RGWObjCategory, RGWStorageStats> *_stats,
-                            const string &_max_marker) {
-    bucket_ver = _bucket_ver;
-    master_ver = _master_ver;
+  virtual void set_response(map<RGWObjCategory, RGWStorageStats> *_stats) {
     stats = _stats;
-    max_marker = _max_marker;
   }
 };
 
@@ -1246,6 +1240,35 @@ class RGWRados
   template<typename T>
   int open_bucket_index(rgw_bucket& bucket, librados::IoCtx& index_ctx,
       map<string, T>& bucket_objs);
+
+  void compose_bucket_version(string *ver_str, bool has_shards, const string& name, uint64_t ver) {
+    if (ver_str) {
+      char buf[name.length() + 64];
+      if (has_shards) {
+        if (ver_str->length()) {
+          ver_str->append(",");
+        }
+        snprintf(buf, sizeof(buf), BUCKET_INDEX_SHARD_FORMAT, name.c_str(), ver);
+      } else {
+        snprintf(buf, sizeof(buf), "%lu", ver);
+      }
+      ver_str->append(buf);
+    }
+  }
+
+  void compose_bucket_marker(string* marker_str, bool has_shards, const string& name, const string& marker) {
+    if(marker_str) {
+      if (marker_str->length()) {
+        marker_str->append(",");
+      }
+      if (has_shards) {
+        marker_str->append(name);
+        marker_str->append("#");
+      }
+      marker_str->append(marker);
+    }
+  }
+
   struct GetObjState {
     librados::IoCtx io_ctx;
     bool sent_data;
@@ -1787,8 +1810,8 @@ public:
   }
 
   int decode_policy(bufferlist& bl, ACLOwner *owner);
-  int get_bucket_stats(rgw_bucket& bucket, uint64_t *bucket_ver, uint64_t *master_ver, map<RGWObjCategory, RGWStorageStats>& stats,
-                       string *max_marker);
+  int get_bucket_stats(rgw_bucket& bucket, string *bucket_ver, string *master_ver,
+      map<RGWObjCategory, RGWStorageStats>& stats, string *max_marker);
   int get_bucket_stats_async(rgw_bucket& bucket, RGWGetBucketStats_CB *cb);
   int get_user_stats(const string& user, RGWStorageStats& stats);
   int get_user_stats_async(const string& user, RGWGetUserStats_CB *cb);
@@ -1824,8 +1847,8 @@ public:
   int cls_bucket_list(rgw_bucket& bucket, const string& start, const string& prefix, uint32_t hint_num,
                       map<string, RGWObjEnt>& m, bool *is_truncated, string *last_entry,
                       bool (*force_check_filter)(const string&  name) = NULL);
-  int cls_bucket_head(rgw_bucket& bucket, struct rgw_bucket_dir_header& header);
-  int cls_bucket_head_async(rgw_bucket& bucket, RGWGetDirHeader_CB *ctx);
+  int cls_bucket_head(rgw_bucket& bucket, map<string, struct rgw_bucket_dir_header>& headers);
+  int cls_bucket_head_async(rgw_bucket& bucket, RGWGetDirHeader_CB *ctx, int *num_aio);
   int prepare_update_index(RGWObjState *state, rgw_bucket& bucket,
                            RGWModifyOp op, rgw_obj& oid, string& tag);
   int complete_update_index(rgw_bucket& bucket, string& oid, string& tag, int64_t poolid, uint64_t epoch, uint64_t size,

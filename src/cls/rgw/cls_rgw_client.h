@@ -92,7 +92,8 @@ void cls_rgw_bucket_init(librados::ObjectWriteOperation& o);
 int cls_rgw_bucket_index_init_op(librados::IoCtx &io_ctx,
         const vector<string>& bucket_objs, uint32_t max_aio);
 
-void cls_rgw_bucket_set_tag_timeout(librados::ObjectWriteOperation& o, uint64_t tag_timeout);
+int cls_rgw_bucket_set_tag_timeout(librados::IoCtx& io_ctx,
+    const vector<string>& bucket_objs, uint64_t tag_timeout, uint32_t max_aio);
 
 void cls_rgw_bucket_prepare_op(librados::ObjectWriteOperation& o, RGWModifyOp op, string& tag,
                                string& name, string& locator, bool log_op);
@@ -122,12 +123,22 @@ int cls_rgw_list_op(librados::IoCtx& io_ctx, const string & start_obj,
                     map<string, struct rgw_cls_list_ret>& list_results,
                     uint32_t max_aio);
 
-int cls_rgw_bucket_check_index_op(librados::IoCtx& io_ctx, string& oid,
-				  rgw_bucket_dir_header *existing_header,
-				  rgw_bucket_dir_header *calculated_header);
-int cls_rgw_bucket_rebuild_index_op(librados::IoCtx& io_ctx, string& oid);
+/**
+ * Check the bucket index.
+ *
+ * io_ctx          - IO context for rados.
+ * bucket_objs_ret - check result for all shards.
+ * max_aio         - the maximum number of AIO (for throttling).
+ *
+ * Return 0 on success, a failure code otherwise.
+ */
+int cls_rgw_bucket_check_index_op(librados::IoCtx& io_ctx,
+    map<string, struct rgw_cls_check_index_ret>& bucket_objs_ret, uint32_t max_aio);
+int cls_rgw_bucket_rebuild_index_op(librados::IoCtx& io_ctx, const vector<string>& bucket_objs,
+    uint32_t max_aio);
   
-int cls_rgw_get_dir_header(librados::IoCtx& io_ctx, string& oid, rgw_bucket_dir_header *header);
+int cls_rgw_get_dir_header(librados::IoCtx& io_ctx, map<string, rgw_cls_list_ret>& dir_headers,
+    uint32_t max_aio);
 int cls_rgw_get_dir_header_async(librados::IoCtx& io_ctx, string& oid, RGWGetDirHeader_CB *ctx);
 
 void cls_rgw_encode_suggestion(char op, rgw_bucket_dir_entry& dirent, bufferlist& updates);
