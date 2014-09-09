@@ -176,6 +176,7 @@ public:
    * @param fromsnapname start snapshot name, or NULL
    * @param ofs start offset
    * @param len len in bytes of region to report on
+   * @param include_parent true if full history diff should include parent
    * @param cb callback to call for each allocated region
    * @param arg argument to pass to the callback
    * @returns 0 on success, or negative error code on error
@@ -183,6 +184,9 @@ public:
   int diff_iterate(const char *fromsnapname,
 		   uint64_t ofs, uint64_t len,
 		   int (*cb)(uint64_t, size_t, int, void *), void *arg);
+  int diff_iterate2(const char *fromsnapname,
+                    uint64_t ofs, uint64_t len, bool include_parent,
+                    int (*cb)(uint64_t, size_t, int, void *), void *arg);
   ssize_t write(uint64_t ofs, size_t len, ceph::bufferlist& bl);
   int discard(uint64_t ofs, uint64_t len);
 

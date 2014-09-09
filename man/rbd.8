@@ -195,6 +195,10 @@ Will list all rbd images listed in the rbd_directory object.  With
 \-l, also show snapshots, and use longer\-format output including
 size, parent (if clone), format, etc.
 .TP
+.B \fBdu\fP
+Will calculate the provisioned and actual disk usage of all
+images within the current pool.
+.TP
 .B \fBinfo\fP [\fIimage\-name\fP]
 Will dump information (such as size and order) about a specific rbd image.
 If image is a clone, information about its parent is also displayed.

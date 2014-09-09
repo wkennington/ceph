@@ -87,13 +87,16 @@ static int create_image(rados_ioctx_t ioctx, const char *name,
 static int create_image_pp(librbd::RBD &rbd,
 			   librados::IoCtx &ioctx,
 			   const char *name,
-			   uint64_t size, int *order) {
+			   uint64_t size, int *order,
+			   uint64_t features = 0) {
   bool old_format;
-  uint64_t features;
-  int r = get_features(&old_format, &features);
-  if (r < 0)
-    return r;
-  if (old_format) {
+  if (features == 0) {
+    int r = get_features(&old_format, &features);
+    if (r < 0) {
+      return r;
+    }
+  }
+  if (features == 0) {
     return rbd.create(ioctx, name, size, order);
   } else {
     return rbd.create2(ioctx, name, size, features, order);
@@ -1595,6 +1598,58 @@ TEST(LibRBD, DiffIterate)
       l.subtract(i);
       cout << " ... two - (two*diff) = " << l << std::endl;     
     }
+    ASSERT_TRUE(two.subset_of(diff));
+  }
+  ioctx.close();
+  ASSERT_EQ(0, destroy_one_pool_pp(pool_name, rados));
+}
+
+TEST(LibRBD, DiffIterate2)
+{
+  librados::Rados rados;
+  librados::IoCtx ioctx;
+  string pool_name = get_temp_pool_name();
+
+  ASSERT_EQ("", create_one_pool_pp(pool_name, rados));
+  ASSERT_EQ(0, rados.ioctx_create(pool_name.c_str(), ioctx));
+
+  int seed = getpid();
+  cout << "seed " << seed << std::endl;
+  srand(seed);
+
+  {
+    librbd::RBD rbd;
+    librbd::Image image;
+    int order = 0;
+    const char *name = "testimg";
+    uint64_t size = 20 << 20;
+
+    ASSERT_EQ(0, create_image_pp(rbd, ioctx, name, size, &order,
+				 RBD_FEATURE_LAYERING));
+    ASSERT_EQ(0, rbd.open(ioctx, image, name, NULL));
+
+    interval_set<uint64_t> exists;
+    interval_set<uint64_t> one;
+    scribble(image, 10, 102400, &exists, &one);
+    cout << " wrote " << one << " to parent" << std::endl;
+    ASSERT_EQ(0, image.snap_create("one"));
+    ASSERT_EQ(0, image.snap_protect("one"));
+
+    const char *clone_name = "cloneimg";
+    ASSERT_EQ(0, rbd.clone(ioctx, name, "one", ioctx, clone_name,
+			   RBD_FEATURE_LAYERING, &order));
+    ASSERT_EQ(0, rbd.open(ioctx, image, clone_name, NULL));
+
+    exists.clear();
+    interval_set<uint64_t> two;
+    scribble(image, 10, 102400, &exists, &two);
+    cout << " wrote " << two << " to clone" << std::endl;
+
+    interval_set<uint64_t> diff;
+    ASSERT_EQ(0, image.diff_iterate2(NULL, 0, size, false, iterate_cb,
+				     (void *)&diff));
+    cout << " diff was " << diff << std::endl;
+    ASSERT_FALSE(one.subset_of(diff));
     ASSERT_TRUE(two.subset_of(diff));
   }
   ioctx.close();

@@ -2460,9 +2460,9 @@ reprotect_and_return_err:
 
 
   int diff_iterate(ImageCtx *ictx, const char *fromsnapname,
-		   uint64_t off, uint64_t len,
-		   int (*cb)(uint64_t, size_t, int, void *),
-		   void *arg)
+                   uint64_t off, uint64_t len, bool include_parent,
+                   int (*cb)(uint64_t, size_t, int, void *),
+                   void *arg)
   {
     utime_t start_time, elapsed;
 
@@ -2517,14 +2517,14 @@ reprotect_and_return_err:
 
     // check parent overlap only if we are comparing to the beginning of time
     interval_set<uint64_t> parent_diff;
-    if (from_snap_id == 0) {
+    if (include_parent && from_snap_id == 0) {
       ictx->parent_lock.get_read();
       uint64_t overlap = end_size;
       ictx->get_parent_overlap(from_snap_id, &overlap);
       r = 0;
       if (ictx->parent && overlap > 0) {
 	ldout(ictx->cct, 10) << " first getting parent diff" << dendl;
-	r = diff_iterate(ictx->parent, NULL, 0, overlap, simple_diff_cb, &parent_diff);
+	r = diff_iterate(ictx->parent, NULL, 0, overlap, true, simple_diff_cb, &parent_diff);
       }
       ictx->parent_lock.put_read();
       if (r < 0)
