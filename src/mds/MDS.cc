@@ -102,7 +102,8 @@ MDS::MDS(const std::string &n, Messenger *m, MonClient *mc) :
   messenger(m),
   monc(mc),
   log_client(m->cct, messenger, &mc->monmap, LogClient::NO_FLAGS),
-  op_tracker(cct, m->cct->_conf->mds_enable_op_tracker),
+  op_tracker(cct, m->cct->_conf->mds_enable_op_tracker, 
+                     m->cct->_conf->osd_num_op_tracker_shard),
   finisher(cct),
   sessionmap(this),
   progress_thread(this),
@@ -2390,7 +2391,9 @@ void *MDS::ProgressThread::entry()
 {
   Mutex::Locker l(mds->mds_lock);
   while (true) {
-    while (!stopping && (mds->finished_queue.empty() && mds->waiting_for_nolaggy.empty())) {
+    while (!stopping &&
+	   mds->finished_queue.empty() &&
+	   (mds->waiting_for_nolaggy.empty() || mds->beacon.is_laggy())) {
       cond.Wait(mds->mds_lock);
     }
 
