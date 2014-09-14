@@ -1653,12 +1653,12 @@ public:
  public:
   bool ms_dispatch(Message *m);
   bool ms_can_fast_dispatch_any() const {
-    return true;
+    return false;
   }
   bool ms_can_fast_dispatch(Message *m) const {
     switch (m->get_type()) {
-    case CEPH_MSG_OSD_OPREPLY:
-      return true;
+      /*    case CEPH_MSG_OSD_OPREPLY:
+           return true; */
     default:
       return false;
     }
