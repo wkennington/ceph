@@ -2249,6 +2249,8 @@ bool OSDMonitor::preprocess_command(MMonCommand *m)
     return true;
   }
 
+  /* cap checks must have been handled in the Monitor class */
+
   string prefix;
   cmd_getval(g_ceph_context, cmdmap, "prefix", prefix);
 
@@ -3885,6 +3887,7 @@ int OSDMonitor::prepare_command_pool_set(map<string,cmd_vartype> &cmdmap,
 
 bool OSDMonitor::prepare_command(MMonCommand *m)
 {
+  /* caps must have been checked on Monitor class */
   stringstream ss;
   map<string, cmd_vartype> cmdmap;
   if (!cmdmap_from_json(m->cmd, &cmdmap, ss)) {
@@ -5906,6 +5909,16 @@ done:
 
 bool OSDMonitor::preprocess_pool_op(MPoolOp *m) 
 {
+  MonSession *session = m->get_session();
+  if (!session) {
+    _pool_op_reply(m, -EPERM, osdmap.get_epoch());
+    return true;
+  }
+  if (!session->is_capable("osd", MON_CAP_W)) {
+    _pool_op_reply(m, -EPERM, osdmap.get_epoch());
+    return true;
+  }
+
   if (m->op == POOL_OP_CREATE)
     return preprocess_pool_op_create(m);
 
@@ -5976,19 +5989,6 @@ bool OSDMonitor::preprocess_pool_op(MPoolOp *m)
 
 bool OSDMonitor::preprocess_pool_op_create(MPoolOp *m)
 {
-  MonSession *session = m->get_session();
-  if (!session) {
-    _pool_op_reply(m, -EPERM, osdmap.get_epoch());
-    return true;
-  }
-  if (!session->is_capable("osd", MON_CAP_W)) {
-    dout(5) << "attempt to create new pool without sufficient auid privileges!"
-	    << "message: " << *m  << std::endl
-	    << "caps: " << session->caps << dendl;
-    _pool_op_reply(m, -EPERM, osdmap.get_epoch());
-    return true;
-  }
-
   int64_t pool = osdmap.lookup_pg_pool_name(m->name.c_str());
   if (pool >= 0) {
     _pool_op_reply(m, 0, osdmap.get_epoch());
