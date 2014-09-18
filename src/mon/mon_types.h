@@ -16,6 +16,7 @@
 #define CEPH_MON_TYPES_H
 
 #include "include/utime.h"
+#include "include/util.h"
 #include "common/Formatter.h"
 
 #define PAXOS_PGMAP      0  // before osd, for pg kick to behave
@@ -89,23 +90,15 @@ WRITE_CLASS_ENCODER(LevelDBStoreStats)
 // data stats
 
 struct DataStats {
+  ceph_data_stats_t fs_stats;
   // data dir
-  uint64_t kb_total;
-  uint64_t kb_used;
-  uint64_t kb_avail;
-  int latest_avail_percent;
   utime_t last_update;
-
   LevelDBStoreStats store_stats;
 
   void dump(Formatter *f) const {
     assert(f != NULL);
-    f->dump_int("kb_total", kb_total);
-    f->dump_int("kb_used", kb_used);
-    f->dump_int("kb_avail", kb_avail);
-    f->dump_int("avail_percent", latest_avail_percent);
+    fs_stats.dump(f);
     f->dump_stream("last_updated") << last_update;
-
     f->open_object_section("store_stats");
     store_stats.dump(f);
     f->close_section();
@@ -113,20 +106,20 @@ struct DataStats {
 
   void encode(bufferlist &bl) const {
     ENCODE_START(2, 1, bl);
-    ::encode(kb_total, bl);
-    ::encode(kb_used, bl);
-    ::encode(kb_avail, bl);
-    ::encode(latest_avail_percent, bl);
+    ::encode(fs_stats.kb_total, bl);
+    ::encode(fs_stats.kb_used, bl);
+    ::encode(fs_stats.kb_avail, bl);
+    ::encode(fs_stats.avail_percent, bl);
     ::encode(last_update, bl);
     ::encode(store_stats, bl);
     ENCODE_FINISH(bl);
   }
   void decode(bufferlist::iterator &p) {
     DECODE_START(1, p);
-    ::decode(kb_total, p);
-    ::decode(kb_used, p);
-    ::decode(kb_avail, p);
-    ::decode(latest_avail_percent, p);
+    ::decode(fs_stats.kb_total, p);
+    ::decode(fs_stats.kb_used, p);
+    ::decode(fs_stats.kb_avail, p);
+    ::decode(fs_stats.avail_percent, p);
     ::decode(last_update, p);
     if (struct_v > 1)
       ::decode(store_stats, p);
