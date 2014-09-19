@@ -1691,7 +1691,9 @@ ceph_tid_t Objecter::_op_submit_with_budget(Op *op, RWLock::Context& lc)
 
   // throttle.  before we look at any state, because
   // take_op_budget() may drop our lock while it blocks.
-  _take_op_budget(op);
+  if (!op->ctx_budgeted) {
+    _take_op_budget(op);
+  }
 
   return _op_submit(op, lc);
 }
@@ -2287,7 +2289,7 @@ void Objecter::_finish_op(Op *op)
 
   assert(op->session->lock.is_wlocked());
 
-  if (op->budgeted)
+  if (!op->ctx_budgeted && op->budgeted)
     put_op_budget(op);
 
   if (op->ontimeout) {
@@ -2690,6 +2692,10 @@ void Objecter::list_objects(ListContext *list_context, Context *onfinish)
     }
   }
   if (list_context->at_end_of_pool) {
+    // release the listing context's budget once all
+    // OPs (in the session) are finished
+    put_list_context_budget(list_context);
+
     onfinish->complete(0);
     return;
   }
@@ -2721,7 +2727,7 @@ void Objecter::list_objects(ListContext *list_context, Context *onfinish)
   object_locator_t oloc(list_context->pool_id, list_context->nspace);
 
   pg_read(list_context->current_pg, oloc, op,
-	  &list_context->bl, 0, onack, &onack->epoch);
+	  &list_context->bl, 0, onack, &onack->epoch, &list_context->ctx_budget);
 }
 
 void Objecter::_list_reply(ListContext *list_context, int r,
@@ -2767,6 +2773,9 @@ void Objecter::_list_reply(ListContext *list_context, int r,
   }
   if (!list_context->list.empty()) {
     ldout(cct, 20) << " returning results so far" << dendl;
+    // release the listing context's budget once all
+    // OPs (in the session) are finished
+    put_list_context_budget(list_context);
     final_finish->complete(0);
     return;
   }
@@ -2775,6 +2784,13 @@ void Objecter::_list_reply(ListContext *list_context, int r,
   list_objects(list_context, final_finish);
 }
 
+void Objecter::put_list_context_budget(ListContext *list_context) {
+    if (list_context->ctx_budget >= 0) {
+      ldout(cct, 10) << " release listing context's budget " << list_context->ctx_budget << dendl;
+      put_op_budget_bytes(list_context->ctx_budget);
+      list_context->ctx_budget = -1;
+    }
+  }
 
 
 //snapshots

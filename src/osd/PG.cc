@@ -1540,14 +1540,19 @@ void PG::activate(ObjectStore::Transaction& t,
       } else if (
 	pg_log.get_tail() > pi.last_update ||
 	pi.last_backfill == hobject_t() ||
-	(backfill_targets.count(*i) && pi.last_backfill.is_max())) {
-	/* This last case covers a situation where a replica is not contiguous
+	/* This case covers a situation where a replica is not contiguous
 	 * with the auth_log, but is contiguous with this replica.  Reshuffling
 	 * the active set to handle this would be tricky, so instead we just go
 	 * ahead and backfill it anyway.  This is probably preferrable in any
 	 * case since the replica in question would have to be significantly
 	 * behind.
 	 */
+	(backfill_targets.count(*i) && pi.last_backfill.is_max()) ||
+	// if we started backfill before with a different purged_snaps, but
+	// snaps changed, we have to restart.  this should generally never
+	// happen because we don't trim snaps unless clean, but it could.
+	(pi.last_backfill != hobject_t::get_max() &&
+	 pi.purged_snaps != info.purged_snaps)) {
 	// backfill
 	osd->clog->info() << info.pgid << " restarting backfill on osd." << peer
 			 << " from (" << pi.log_tail << "," << pi.last_update << "] " << pi.last_backfill
@@ -1559,6 +1564,9 @@ void PG::activate(ObjectStore::Transaction& t,
 	pi.history = info.history;
 	pi.hit_set = info.hit_set;
 	pi.stats.stats.clear();
+
+	// initialize peer with our purged_snaps.
+	pi.purged_snaps = info.purged_snaps;
 
 	m = new MOSDPGLog(
 	  i->shard, pg_whoami.shard,
