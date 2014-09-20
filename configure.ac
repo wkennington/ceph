@@ -285,6 +285,17 @@ if test "x$enable_coverage" != xno; then
 fi
 AC_SUBST(GCOV_PREFIX_STRIP, `echo $(pwd)/src | tr -dc / | wc -c`)
 
+# server?
+AC_ARG_WITH([server],
+            [AS_HELP_STRING([--with-server], [build server side code])],
+            [case "${withval}" in
+		  yes) with_server=yes ;;
+		  no)  with_server=no ;;
+		  *) AC_MSG_ERROR([bad value ${withval} for --with-debug]) ;;
+	     esac],
+            [with_server=yes])
+AM_CONDITIONAL(ENABLE_SERVER, test "$with_server" = "yes")
+
 # radosgw?
 AC_ARG_WITH([radosgw],
             [AS_HELP_STRING([--with-radosgw], [build RADOS gateway])],
