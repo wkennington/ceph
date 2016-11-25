@@ -41,6 +41,3 @@
 [submodule "src/Beast"]
 	path = src/Beast
 	url = https://github.com/ceph/Beast.git
-[submodule "src/dpdk"]
-	path = src/dpdk
-	url = https://github.com/ceph/dpdk
