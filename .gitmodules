@@ -24,9 +24,6 @@
 	path = src/googletest
 	url = https://github.com/ceph/googletest
 	branch = ceph-release-1.7.x
-[submodule "src/spdk"]
-	path = src/spdk
-	url = https://github.com/ceph/spdk.git
 [submodule "src/xxHash"]
 	path = src/xxHash
 	url = https://github.com/ceph/xxHash.git
@@ -41,9 +38,3 @@
 [submodule "src/Beast"]
 	path = src/Beast
 	url = https://github.com/ceph/Beast.git
-[submodule "src/boost"]
-	path = src/boost
-	url = https://github.com/boostorg/boost.git
-[submodule "src/dpdk"]
-	path = src/dpdk
-	url = https://github.com/ceph/dpdk
