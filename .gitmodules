@@ -12,10 +12,6 @@
 	path = src/erasure-code/jerasure/gf-complete
 	url = https://github.com/ceph/gf-complete.git
 	branch = v3-ceph
-[submodule "src/rocksdb"]
-	path = src/rocksdb
-	url = https://github.com/ceph/rocksdb
-	ignore = dirty
 [submodule "ceph-erasure-code-corpus"]
 	path = ceph-erasure-code-corpus
 	url = https://github.com/ceph/ceph-erasure-code-corpus.git
@@ -23,9 +19,6 @@
 	path = src/googletest
 	url = https://github.com/ceph/googletest
 	branch = ceph-release-1.7.x
-[submodule "src/spdk"]
-	path = src/spdk
-	url = https://github.com/ceph/spdk.git
 [submodule "src/xxHash"]
 	path = src/xxHash
 	url = https://github.com/ceph/xxHash.git
